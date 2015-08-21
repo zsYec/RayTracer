@@ -1,5 +1,4 @@
 #include <fstream>
-#include <cstring>
 #include <iostream>
 #include <cmath>
 #include <memory>
@@ -15,7 +14,8 @@ inline float clampf(float v, float min, float max) {
     return v < min ? min : v > max ? max : v;
 }
 
-struct Color {
+class Color {
+public:
     float r, g, b;
     Color(float r_ = 0.0, float g_ = 0.0, float b_ = 0.0) :
             r(r_), g(g_), b(b_) {}
@@ -120,7 +120,8 @@ public:
     }
 };
 
-struct Vector {
+class Vector {
+public:
     float x, y, z;
     Vector(float x_, float y_, float z_) : x(x_), y(y_), z(z_) {}
     Vector(const Vector& r) : x(r.x), y(r.y), z(r.z) {}
@@ -209,7 +210,9 @@ struct Geometry : public Scene {
     unique_ptr<Material> material;
     Geometry(Material *m = NULL) : material(m) {}
 };
-struct Sphere : public Geometry {
+
+class Sphere : public Geometry {
+public:
     Vector center;
     float radius, sqrRadius;
 
@@ -250,29 +253,16 @@ struct Plane : public Geometry {
 };
 
 struct Union : public Scene {
-    unique_ptr<Geometry> geometries[4];
+    unique_ptr<Geometry> geometries[6];
     int n;
-    /*
-    template <typename... T>
-    Union(T... gs) {
-      addGeometries(gs...);
-    }
-
-    void addGeometries() {
-
-    }
-    template <typename... T>
-    void addGeometries(Geometry* g, T... gs) {
-      geometries.push_back(shared_ptr<Geometry>(g));
-      addGeometries(gs...);
-    }
-    */
-    Union(Geometry* g1 = NULL, Geometry* g2 = NULL, Geometry* g3 = NULL, Geometry* g4 = NULL) {
+    Union(Geometry* g1 = NULL, Geometry* g2 = NULL, Geometry* g3 = NULL, Geometry* g4 = NULL, Geometry* g5 = NULL, Geometry* g6 = NULL) {
         n = 0;
         if (g1) geometries[n++].reset(g1);
         if (g2) geometries[n++].reset(g2);
         if (g3) geometries[n++].reset(g3);
         if (g4) geometries[n++].reset(g4);
+        if (g5) geometries[n++].reset(g5);
+        if (g6) geometries[n++].reset(g6);
     }
     IntersectResult intersect(const Ray& ray) const {
 
@@ -310,7 +300,7 @@ struct CheckerMaterial : public Material {
     CheckerMaterial(float s, float r = 0.0) : Material(r), scale(s) {}
     Color sample(const Ray& ray, const Vector& position, const Vector& normal) const {
         if (iabs(floor(position.x * 0.1) + floor(position.z * scale)) % 2 < 1)
-            return Color();
+            return Color(0, 0, 0);
         else
             return Color(1.0, 1.0, 1.0);
     }
@@ -320,7 +310,9 @@ Color lightColor = Color(1, 1, 1);
 inline float max(float a, float b) {
     return a > b ? a : b;
 }
-struct PhongMaterial : public Material {
+
+class PhongMaterial : public Material {
+public:
     Color diffuse, specular;
     int shininess;
     PhongMaterial(const Color& d, const Color& sp, int sh, float r = 0.0) :
@@ -338,8 +330,16 @@ struct PhongMaterial : public Material {
     }
 };
 
+class Lights;
+
+//class PointLight : public Lights {
+//public:
+//
+//};
+
 template <int maxReflect>
-struct RayTracer {
+class RayTracer {
+public:
     Color operator()(const Scene& scene, const Ray& ray_) const {
         Color color;
         float reflectiveness = 1.0;
@@ -378,13 +378,18 @@ void render(const Scene& scene, const PerspectiveCamera& camera, const RenderFun
         Ray ray = camera.generateRay(sx, sy);
         image[i] = f(scene, ray);
     }
+
 }
 
 int main() {
     clock_t t1 = clock();
-    render(Union(new Plane(Vector(0, 1, 0), 0, new CheckerMaterial(0.1, 0.25)),
-                 new Sphere(Vector(-10, 10, -10), 10, new PhongMaterial(Color(1, 0, 0), Color(1, 1, 1),16, 0.25)),
-                 new Sphere(Vector( 10, 10, -10), 10, new PhongMaterial(Color(0, 0, 1), Color(1, 1, 1), 16, 0.25))),
+    render(Union(new Plane(Vector(0, 0.5, 0), 0, new CheckerMaterial(0.1, 0.5)),
+                 new Sphere(Vector(-10, 20, -10), 5, new PhongMaterial(Color(0.3, 1, 0.8), Color(1, 1, 1), 16, 0.25)),
+                 new Sphere(Vector( 10, 10, -10), 10, new PhongMaterial(Color(1, 1, 0), Color(1, 1, 1), 16, 0.25)),
+                 new Sphere(Vector(-10, 10,  -5), 5, new PhongMaterial(Color(0, 1, 0), Color(1, 1, 1), 16, 0.25)),
+                 new Sphere(Vector(-5, 5,  -5), 5, new PhongMaterial(Color(1, 1, 1), Color(1, 1, 1), 16, 0.25)),
+                 new Sphere(Vector(5, 15,  -15), 10, new PhongMaterial(Color(1, 0.5, 0.5), Color(1, 1, 1), 16, 0.25))
+                ),
            PerspectiveCamera(Vector(0, 5, 15), Vector(0, 0, -1), Vector(0, 1, 0), 90),
            RayTracer<maxReflect>());
     clock_t t2 = clock();
